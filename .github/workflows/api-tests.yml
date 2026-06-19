@@ -33,7 +33,7 @@ jobs:
         working-directory: api-tests
         run: |
           mkdir -p results
-          npx bru run --env production --recursive \
+          npx bru run --env production -r \
             --reporter-junit results/junit.xml \
             --env-var "clientId=${{ secrets.AIRALO_CLIENT_ID }}" \
             --env-var "clientSecret=${{ secrets.AIRALO_CLIENT_SECRET }}"

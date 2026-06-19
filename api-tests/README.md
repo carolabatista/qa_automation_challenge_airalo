@@ -171,7 +171,7 @@ This installs `@usebruno/cli` (the `bru` binary) locally into `node_modules/.bin
 npm test
 ```
 
-This runs `bru run --env production --recursive` from the `api-tests/` directory, executing all requests in folder order (`01-auth` → `02-orders` → `03-esims`).
+This runs `bru run --env production -r` from the `api-tests/` directory, executing all requests in folder order (`01-auth` → `02-orders` → `03-esims`).
 
 #### 4. Run with a JUnit report (optional)
 
