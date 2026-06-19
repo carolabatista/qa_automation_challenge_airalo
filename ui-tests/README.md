@@ -15,11 +15,7 @@ The site displays multiple consent and marketing banners depending on the browse
 - A **OneTrust** cookie consent banner (all browsers)
 - A **CleverTap** (`#wzrk-cancel`) notification overlay, which appeared consistently during testing in **Firefox** and **WebKit**
 
-To prevent these overlays from blocking interactions, `LandingPage.goto()` performs two dismissal passes before returning:
-1. An **immediate pass** — dismisses any banners already visible on page load
-2. A **grace-window pass** — waits up to `OVERLAY_APPEAR_TIMEOUT_MS` (1500ms) for delayed overlays (such as the CleverTap widget, which is injected asynchronously) and dismisses them if they appear
-
-This ensures the page is overlay-free before any search interaction begins, making the test deterministic across browsers.
+`LandingPage.goto()` registers a [`page.addLocatorHandler()`](https://playwright.dev/docs/api/class-page#page-add-locator-handler) for the overlay dismiss button before navigating. Playwright automatically invokes the handler before every web-first action (click, fill, assertion, etc.) whenever the locator is visible — regardless of when the overlay appears. 
 
 ---
 
@@ -109,23 +105,15 @@ The CI workflow can be triggered on demand without a code push directly from the
 
 ## Known handicaps
 
-### 1. Overlay dismissal relies on a grace window
+### 1. Overlay handler fires before actions, not during arbitrary waits
 
-`clearOverlays()` races between the overlay appearing and the page reaching `networkidle`. This is pragmatic but imperfect: the CleverTap banner is injected via a JavaScript timer, not a network request, so the network can go idle *before* the banner appears. In that race, the banner wins and is correctly handled — but if the timer fires just after `networkidle` and after the race resolves, it would be missed.
+`page.addLocatorHandler()` is invoked by Playwright before every web-first action (click, fill, `expect`, etc.). If an overlay appears *during* a long `waitFor` call — for example near the end of a 5-second suggestion-visibility wait — the handler will not fire until the next action is attempted. In practice this is very unlikely because overlays appear early in the page lifecycle, but it is a theoretical gap.
 
-**Defence:** In practice this edge case did not occur during testing across all five browser projects. The `networkidle` heuristic is a well-understood Playwright primitive and the correct tool when no application-specific event is available. The alternative — a fixed timeout — is strictly worse because it adds unconditional latency on every run regardless of whether an overlay appears.
-
----
-
-### 2. Fallback click path has a bounded but opaque timeout
-
-When `click()` does not dismiss an overlay (pointer events intercepted by another element), `dismissVisibleOverlays()` falls back to `dispatchEvent('click')` and waits for `{ state: 'hidden', timeout: OVERLAY_APPEAR_TIMEOUT_MS }`. If the element still does not hide within that window the test fails — which is the correct behaviour. The timeout value (`OVERLAY_APPEAR_TIMEOUT_MS`) doubles as both the grace window and the fallback click timeout, which conflates two distinct concerns.
-
-**Defence:** Both usages represent the same concept — the maximum time we are willing to wait for an overlay to react. Using one named constant for both keeps the codebase DRY and makes the value easy to adjust in one place. If the two concerns diverged in the future, splitting them into two constants would be a trivial refactor.
+**Defence:** The handler covers every interaction step in the test flow. The only window where an unhandled overlay could slip through is between the end of one action and the start of the next, which is effectively zero in synchronous test code.
 
 ---
 
-### 3. Locators and assertions are English-only
+### 2. Locators and assertions are English-only
 
 The most impactful limitation. Locators use English text (`accept`, `allow`, `Japan`, `Select Unlimited - 7 days`) and assertions match English strings (`/airalo/i`, `/japan/i`). If the site detects the browser locale and serves a different language, or if copy is A/B tested, these will fail silently (wrong country selected) or loudly (assertion error).
 
@@ -133,13 +121,13 @@ The most impactful limitation. Locators use English text (`accept`, `allow`, `Ja
 
 ---
 
-### 4. Third-party overlay selectors are fragile
+### 3. Third-party overlay selectors are fragile
 
-The `#wzrk-cancel` selector and the `accept|allow` text filter target today's CleverTap and OneTrust widget implementations. If either vendor updates their widget structure or renames their IDs, overlay dismissal will silently fail — the test continues without error but the overlay may block subsequent interactions. A more defensive approach would be to assert that no known overlay wrapper (`#wzrk_wrapper`, `#onetrust-banner-sdk`) is visible before proceeding with each interaction.
+The `#wzrk-cancel` selector and the `accept|allow` text filter target today's CleverTap and OneTrust widget implementations. If either vendor updates their widget structure or renames their IDs, the `addLocatorHandler` locator will silently stop matching — no handler fires, and the overlay blocks subsequent interactions. A more defensive approach would be to assert that no known overlay wrapper (`#wzrk_wrapper`, `#onetrust-banner-sdk`) is visible before proceeding with each interaction.
 
 ---
 
-### 5. Single happy-path scenario
+### 4. Single happy-path scenario
 
 The suite covers one end-to-end journey. Edge cases are not covered: no results for a search term, plan sold out, session expiry, network errors, or behaviour when the user is already signed in. These would be the natural next additions to the suite.
 
