@@ -6,6 +6,21 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit, mobile-chrome, mobile-safari]
+        include:
+          - project: mobile-chrome
+            playwright-project: mobile chrome
+          - project: mobile-safari
+            playwright-project: mobile safari
+          - project: chromium
+            playwright-project: chromium
+          - project: firefox
+            playwright-project: firefox
+          - project: webkit
+            playwright-project: webkit
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
@@ -17,12 +32,12 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
       working-directory: ui-tests
-    - name: Run Playwright tests
-      run: npx playwright test
+    - name: Run Playwright tests (${{ matrix.project }})
+      run: npx playwright test --project="${{ matrix.playwright-project }}"
       working-directory: ui-tests
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
-        name: playwright-report
+        name: playwright-report-${{ matrix.project }}
         path: ui-tests/playwright-report/
         retention-days: 30
