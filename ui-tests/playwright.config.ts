@@ -6,7 +6,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 2 : undefined,
-  reporter: 'html',
+  reporter: process.env.CI ? 'blob' : 'html',
   use: {
     baseURL: process.env.BASE_URL ?? 'https://www.airalo.com',
     trace: 'on-first-retry',

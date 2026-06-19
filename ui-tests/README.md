@@ -95,15 +95,7 @@ When `click()` does not dismiss an overlay (pointer events intercepted by anothe
 
 ---
 
-### 3. `selectCountry` uses a DOM snapshot for flag detection
-
-`withFlag.count()` takes a point-in-time snapshot of the DOM. Between that snapshot and the subsequent `.first().click()`, the suggestion list could re-render (e.g. debounced search fires again), leaving the resolved locator pointing at a detached node. Playwright will retry the `click()` action internally, but the count check would not be re-evaluated.
-
-**Defence:** The risk is real but minimal in this context — the search input is not typed into again between `count()` and `click()`, so no re-render is triggered. A more defensive implementation would use a single `try/catch` around the flag-filtered click with a fallback to the plain first match, but that trades a theoretical race for try/catch-as-control-flow, which is itself a code smell. The current approach is the cleaner of the two reasonable options.
-
----
-
-### 4. Locators and assertions are English-only
+### 3. Locators and assertions are English-only
 
 The most impactful limitation. Locators use English text (`accept`, `allow`, `Japan`, `Select Unlimited - 7 days`) and assertions match English strings (`/airalo/i`, `/japan/i`). If the site detects the browser locale and serves a different language, or if copy is A/B tested, these will fail silently (wrong country selected) or loudly (assertion error).
 
@@ -111,19 +103,13 @@ The most impactful limitation. Locators use English text (`accept`, `allow`, `Ja
 
 ---
 
-### 5. Dynamic pricing
-
-`verifyButtonPriceMatchesCart()` reads the plan price at runtime and compares it to the cart. This is correct behaviour for a dynamic site, but if pricing changes between the button render and the cart render (e.g. a flash sale activating mid-test), the assertion could produce a false negative. There is no way to guard against this without mocking the pricing API, which would undermine the purpose of an end-to-end test.
-
----
-
-### 6. Third-party overlay selectors are fragile
+### 4. Third-party overlay selectors are fragile
 
 The `#wzrk-cancel` selector and the `accept|allow` text filter target today's CleverTap and OneTrust widget implementations. If either vendor updates their widget structure or renames their IDs, overlay dismissal will silently fail — the test continues without error but the overlay may block subsequent interactions. A more defensive approach would be to assert that no known overlay wrapper (`#wzrk_wrapper`, `#onetrust-banner-sdk`) is visible before proceeding with each interaction.
 
 ---
 
-### 7. Single happy-path scenario
+### 5. Single happy-path scenario
 
 The suite covers one end-to-end journey. Edge cases are not covered: no results for a search term, plan sold out, session expiry, network errors, or behaviour when the user is already signed in. These would be the natural next additions to the suite.
 

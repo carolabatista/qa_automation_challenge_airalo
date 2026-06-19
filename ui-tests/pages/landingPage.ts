@@ -42,7 +42,6 @@ export class LandingPage {
       await this.overlayDismissButton.waitFor({ state: 'visible', timeout: OVERLAY_APPEAR_TIMEOUT_MS });
       await this.dismissVisibleOverlays();
     } catch {
-      // No delayed overlay appeared within the grace window
     }
   }
 

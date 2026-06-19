@@ -11,33 +11,167 @@ jobs:
       matrix:
         project: [chromium, firefox, webkit, mobile-chrome, mobile-safari]
         include:
-          - project: mobile-chrome
-            playwright-project: mobile chrome
-          - project: mobile-safari
-            playwright-project: mobile safari
           - project: chromium
             playwright-project: chromium
+            browser: chromium
           - project: firefox
             playwright-project: firefox
+            browser: firefox
           - project: webkit
             playwright-project: webkit
+            browser: webkit
+          - project: mobile-chrome
+            playwright-project: mobile chrome
+            browser: chromium
+          - project: mobile-safari
+            playwright-project: mobile safari
+            browser: webkit
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v6
       with:
         node-version: lts/*
     - name: Install dependencies
       run: npm ci
       working-directory: ui-tests
     - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+      run: npx playwright install --with-deps ${{ matrix.browser }}
       working-directory: ui-tests
     - name: Run Playwright tests (${{ matrix.project }})
       run: npx playwright test --project="${{ matrix.playwright-project }}"
       working-directory: ui-tests
-    - uses: actions/upload-artifact@v4
-      if: ${{ !cancelled() }}
+    - name: Upload blob report
+      if: always()
+      uses: actions/upload-artifact@v7
       with:
-        name: playwright-report-${{ matrix.project }}
+        name: blob-report-${{ matrix.project }}
+        path: ui-tests/blob-report/
+        retention-days: 1
+
+  merge-reports:
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v6
+      with:
+        node-version: lts/*
+    - name: Install dependencies
+      run: npm ci
+      working-directory: ui-tests
+
+    - name: Download all blob reports
+      uses: actions/download-artifact@v8
+      with:
+        pattern: blob-report-*
+        path: ui-tests/all-blob-reports
+        merge-multiple: true
+        fail-on-no-matches: false
+
+    - name: Merge reports
+      run: |
+        BLOB_COUNT=$(find all-blob-reports -name '*.zip' -o -name '*.jsonl' 2>/dev/null | wc -l)
+        echo "Blob reports found: ${BLOB_COUNT}"
+        if [ "$BLOB_COUNT" -eq 0 ]; then
+          echo "⚠️ No blob reports to merge — skipping"
+        else
+          npx playwright merge-reports -c merge.config.ts ./all-blob-reports
+        fi
+      working-directory: ui-tests
+
+    - name: Generate test summary
+      if: always()
+      run: |
+        JSON_FILE="playwright-report/results.json"
+
+        if [ ! -f "$JSON_FILE" ]; then
+          echo "# ⚠️ No E2E report generated" >> "$GITHUB_STEP_SUMMARY"
+          echo "No results.json found — check test execution above." >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+
+        PASSED=$(jq '.stats.expected // 0' "$JSON_FILE")
+        UNEXPECTED=$(jq '.stats.unexpected // 0' "$JSON_FILE")
+        FLAKY=$(jq '.stats.flaky // 0' "$JSON_FILE")
+        SKIPPED=$(jq '.stats.skipped // 0' "$JSON_FILE")
+        GLOBAL_ERRORS=$(jq '(.errors // []) | length' "$JSON_FILE")
+        FAILED=$((UNEXPECTED + GLOBAL_ERRORS))
+        TOTAL=$((PASSED + FAILED + FLAKY + SKIPPED))
+        RAN=$((PASSED + FAILED + FLAKY))
+        if [ "$RAN" -gt 0 ]; then
+          PASS_RATE=$(awk "BEGIN {printf \"%.0f\", ($PASSED * 100) / $RAN}")
+        else
+          PASS_RATE=0
+        fi
+
+        FAILED_LIST=$(jq -r '
+          .suites[].suites[]? |
+          select(.specs != null) |
+          .specs[] |
+          select(.tests != null) |
+          . as $spec |
+          .tests[] |
+          select(.status == "unexpected") |
+          "- [\(.projectName)] \($spec.title) `\($spec.file)`"
+        ' "$JSON_FILE" 2>/dev/null || echo "")
+
+        {
+          echo "# 🚀 Airalo UI Tests — Run #${{ github.run_number }}"
+          echo ""
+          echo "| Metric | Value |"
+          echo "|--------|--------|"
+          echo "| ✅ Passed | **${PASSED}** |"
+          echo "| ❌ Failed | **${FAILED}** |"
+          echo "| 🔄 Flaky | **${FLAKY}** |"
+          echo "| ⏭️ Skipped | **${SKIPPED}** |"
+          echo "| 📊 Total Tests | **${TOTAL}** |"
+          echo "| 📈 Pass Rate | **${PASS_RATE}%** |"
+          echo ""
+          echo "### 📦 How to view the full HTML report"
+          echo "1. Scroll to the bottom of this page and open the **Artifacts** section"
+          echo "2. Download \`playwright-report-${{ github.run_number }}.zip\`"
+          echo "3. Extract the ZIP"
+          echo "4. Open \`index.html\` in your browser — includes screenshots, videos and traces"
+          echo ""
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        if [ "$FAILED" -gt 0 ]; then
+          {
+            echo "## ❌ Failed Tests (${FAILED} total)"
+            echo ""
+            echo "$FAILED_LIST"
+            echo ""
+            echo "### 🔧 Next Steps"
+            echo "- Re-run failures locally: \`npx playwright test --last-failed\`"
+            echo "- Inspect traces in the HTML report for each failed test"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+      working-directory: ui-tests
+
+    - name: Upload merged HTML report
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: playwright-report-${{ github.run_number }}
         path: ui-tests/playwright-report/
-        retention-days: 30
+        retention-days: 7
+
+    - name: Fail if tests failed
+      if: always()
+      run: |
+        JSON_FILE="playwright-report/results.json"
+        if [ ! -f "$JSON_FILE" ]; then
+          echo "❌ No test report found — treating as failure"
+          exit 1
+        fi
+        UNEXPECTED=$(jq '.stats.unexpected // 0' "$JSON_FILE")
+        GLOBAL_ERRORS=$(jq '(.errors // []) | length' "$JSON_FILE")
+        FAILED=$((UNEXPECTED + GLOBAL_ERRORS))
+        if [ "$FAILED" -gt 0 ]; then
+          echo "❌ $UNEXPECTED test(s) failed, $GLOBAL_ERRORS global error(s)"
+          exit 1
+        fi
+        echo "✅ All tests passed!"
+      working-directory: ui-tests
