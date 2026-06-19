@@ -1,6 +1,7 @@
 import { Page, Locator } from '@playwright/test';
 
-const OVERLAY_APPEAR_TIMEOUT_MS = 1500;
+const FILL_SUGGESTION_TIMEOUT_MS = 3000;
+const SUGGESTION_VISIBLE_TIMEOUT_MS = 5000;
 
 export class LandingPage {
   private readonly page: Page;
@@ -18,14 +19,28 @@ export class LandingPage {
   }
 
   async goto(): Promise<void> {
+    await this.page.addLocatorHandler(this.overlayDismissButton, async () => {
+      await this.overlayDismissButton.click();
+      await this.overlayDismissButton.waitFor({ state: 'hidden' }).catch(() => {});
+    });
     await this.page.goto('/');
-    await this.clearOverlays();
   }
 
   async searchForCountry(term: string): Promise<void> {
+    await this.searchInput.waitFor({ state: 'visible' });
     await this.searchInput.click();
-    await this.searchInput.pressSequentially(term);
-    await this.suggestions(term).first().waitFor({ state: 'visible' });
+    await this.searchInput.fill(term);
+
+    const appeared = await this.suggestions(term).first()
+      .waitFor({ state: 'visible', timeout: FILL_SUGGESTION_TIMEOUT_MS })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!appeared) {
+      await this.searchInput.clear();
+      await this.searchInput.pressSequentially(term, { delay: 50 });
+      await this.suggestions(term).first().waitFor({ state: 'visible', timeout: SUGGESTION_VISIBLE_TIMEOUT_MS });
+    }
   }
 
   async selectCountry(countryName: string): Promise<void> {
@@ -34,29 +49,6 @@ export class LandingPage {
     });
     const target = (await withFlag.count()) > 0 ? withFlag.first() : this.suggestions(countryName).first();
     await target.click();
-  }
-
-  private async clearOverlays(): Promise<void> {
-    await this.dismissVisibleOverlays();
-    try {
-      await this.overlayDismissButton.waitFor({ state: 'visible', timeout: OVERLAY_APPEAR_TIMEOUT_MS });
-      await this.dismissVisibleOverlays();
-    } catch {
-    }
-  }
-
-  private async dismissVisibleOverlays(): Promise<void> {
-    while (await this.overlayDismissButton.isVisible()) {
-      await this.overlayDismissButton.click();
-      const dismissed = await this.overlayDismissButton
-        .waitFor({ state: 'hidden', timeout: OVERLAY_APPEAR_TIMEOUT_MS })
-        .then(() => true)
-        .catch(() => false);
-      if (!dismissed) {
-        await this.overlayDismissButton.dispatchEvent('click');
-        await this.overlayDismissButton.waitFor({ state: 'hidden' });
-      }
-    }
   }
 
   private suggestions(countryName: string): Locator {
