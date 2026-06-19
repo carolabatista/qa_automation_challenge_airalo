@@ -6,8 +6,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "test": "bru run --env production -r",
-    "test:ci": "bru run --env production -r --reporter-junit results/junit.xml"
+    "test": "bru run --env production -r --delay 1000",
+    "test:ci": "bru run --env production -r --delay 1000 --reporter-junit results/junit.xml"
   },
   "devDependencies": {
     "@usebruno/cli": "^1.0.0"

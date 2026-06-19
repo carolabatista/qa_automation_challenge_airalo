@@ -91,19 +91,9 @@ The GitHub Actions workflow (`.github/workflows/api-tests.yml`) triggers automat
 The workflow:
 1. Checks out the repository
 2. Installs Node.js 20 and `@usebruno/cli`
-3. Runs the full collection against the `production` environment
+3. Runs the full collection against the `production` environment (credentials are read from `environments/production.bru`)
 4. Uploads a JUnit XML report as a workflow artifact
 
-The workflow uses GitHub Secrets to pass credentials to Bruno via `--env-var` flags. You **must** create these two secrets before the workflow can run successfully:
-
-1. Go to your repository on GitHub
-2. Navigate to **Settings → Secrets and variables → Actions**
-3. Click **New repository secret** and add each of the following:
-
-| Secret name | Value |
-|---|---|
-| `AIRALO_CLIENT_ID` | `92d73dd36ed012dbd5f59220076d845a` |
-| `AIRALO_CLIENT_SECRET` | `DDpoEo76i3S0kH7xOYwLiAqZ0yxCs1N6352wLoSD` |
 
 ---
 

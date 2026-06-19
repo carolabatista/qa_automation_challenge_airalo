@@ -35,8 +35,7 @@ jobs:
           mkdir -p results
           npx bru run --env production -r \
             --reporter-junit results/junit.xml \
-            --env-var "clientId=${{ secrets.AIRALO_CLIENT_ID }}" \
-            --env-var "clientSecret=${{ secrets.AIRALO_CLIENT_SECRET }}"
+            --delay 1000
 
       - name: Upload test results
         if: always()
