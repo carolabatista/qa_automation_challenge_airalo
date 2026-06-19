@@ -1,0 +1,60 @@
+meta {
+  name: Get Access Token
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/token
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "client_id": "{{clientId}}",
+    "client_secret": "{{clientSecret}}",
+    "grant_type": "client_credentials"
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.data && res.body.data.access_token) {
+    bru.setEnvVar("accessToken", res.body.data.access_token);
+    console.log("✓ Access token obtained and stored");
+  } else {
+    throw new Error(
+      `Failed to obtain access token. Status: ${res.status}. Body: ${JSON.stringify(res.body)}`
+    );
+  }
+}
+
+tests {
+  test("Status 200 - OK", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Response has data object", function () {
+    expect(res.body).to.have.property("data");
+  });
+
+  test("Response contains access_token", function () {
+    expect(res.body.data).to.have.property("access_token");
+    expect(res.body.data.access_token).to.be.a("string").and.not.empty;
+  });
+
+  test("Token type is Bearer", function () {
+    expect(res.body.data.token_type).to.equal("Bearer");
+  });
+
+  test("Token has expiry duration", function () {
+    expect(res.body.data).to.have.property("expires_in");
+    expect(res.body.data.expires_in).to.be.a("number").and.greaterThan(0);
+  });
+}
+

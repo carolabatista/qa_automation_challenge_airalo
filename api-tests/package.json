@@ -1,0 +1,16 @@
+{
+  "name": "airalo-api-tests",
+  "version": "1.0.0",
+  "description": "Airalo Partner API tests using Bruno",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "bru run --env production --recursive",
+    "test:ci": "bru run --env production --recursive --reporter-junit results/junit.xml"
+  },
+  "devDependencies": {
+    "@usebruno/cli": "^1.0.0"
+  }
+}
+

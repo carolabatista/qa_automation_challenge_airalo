@@ -1,0 +1,48 @@
+name: Airalo API Tests
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "api-tests/**"
+
+  workflow_dispatch:
+
+jobs:
+  api-tests:
+    name: Run Bruno API Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: api-tests/package-lock.json
+
+      - name: Install dependencies
+        working-directory: api-tests
+        run: npm install
+
+      - name: Run Airalo API tests
+        working-directory: api-tests
+        run: |
+          mkdir -p results
+          npx bru run --env production --recursive \
+            --reporter-junit results/junit.xml \
+            --env-var "clientId=${{ secrets.AIRALO_CLIENT_ID }}" \
+            --env-var "clientSecret=${{ secrets.AIRALO_CLIENT_SECRET }}"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-results
+          path: api-tests/results/junit.xml
+          if-no-files-found: ignore
+

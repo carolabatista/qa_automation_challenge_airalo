@@ -1,0 +1,58 @@
+meta {
+  name: Get eSIM 4 Details
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/sims/{{iccid4}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Accept: application/json
+}
+
+script:pre-request {
+  const token = bru.getEnvVar("accessToken");
+  if (!token) {
+    throw new Error("accessToken is empty. Run 01-auth/get-access-token first.");
+  }
+  const iccid = bru.getEnvVar("iccid4");
+  if (!iccid) {
+    throw new Error("iccid4 is empty. Run 02-orders/submit-order first.");
+  }
+}
+
+tests {
+  test("Status 200 - OK", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Response has data object", function () {
+    expect(res.body).to.have.property("data");
+  });
+
+  test("ICCID matches the requested eSIM", function () {
+    expect(res.body.data.iccid).to.equal(bru.getEnvVar("iccid4"));
+  });
+
+  test("ICCID has valid format (18–22 digits)", function () {
+    expect(res.body.data.iccid).to.match(/^\d{18,22}$/);
+  });
+
+  test("eSIM has an LPA activation code", function () {
+    expect(res.body.data).to.have.property("lpa");
+    expect(res.body.data.lpa).to.be.a("string").and.not.empty;
+  });
+
+  test("eSIM has a QR code", function () {
+    expect(res.body.data).to.have.property("qrcode");
+    expect(res.body.data.qrcode).to.be.a("string").and.not.empty;
+  });
+}

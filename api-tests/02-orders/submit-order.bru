@@ -1,0 +1,96 @@
+meta {
+  name: Submit Order - 6 eSIMs
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "quantity": 6,
+    "package_id": "{{packageId}}",
+    "type": "sim"
+  }
+}
+
+script:pre-request {
+  const token = bru.getEnvVar("accessToken");
+  if (!token) {
+    throw new Error("accessToken is empty. Run 01-auth/get-access-token first.");
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.data && res.body.data.sims) {
+    const sims = res.body.data.sims;
+    sims.forEach((sim, index) => {
+      bru.setEnvVar(`iccid${index + 1}`, sim.iccid);
+    });
+    console.log(`✓ Order placed. ${sims.length} eSIMs obtained.`);
+    console.log("ICCIDs:", sims.map(s => s.iccid).join(", "));
+  } else {
+    throw new Error(
+      `Failed to place order. Status: ${res.status}. Body: ${JSON.stringify(res.body)}`
+    );
+  }
+}
+
+tests {
+  test("Status 200 - OK", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("Response has data object", function () {
+    expect(res.body).to.have.property("data");
+  });
+
+  test("Order contains 6 eSIMs", function () {
+    expect(res.body.data.sims).to.be.an("array");
+    expect(res.body.data.sims).to.have.lengthOf(6);
+  });
+
+  test("Package ID matches requested package", function () {
+    expect(res.body.data.package_id).to.equal("moshi-moshi-7days-1gb");
+  });
+
+  test("All ICCIDs are unique", function () {
+    const iccids = res.body.data.sims.map(sim => sim.iccid);
+    const unique = new Set(iccids);
+    expect(unique.size).to.equal(iccids.length);
+  });
+
+  test("Each ICCID has valid format (18–22 digits)", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim.iccid).to.match(/^\d{18,22}$/);
+    });
+  });
+
+  test("Each eSIM has an LPA activation code", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim).to.have.property("lpa");
+      expect(sim.lpa).to.be.a("string").and.not.empty;
+    });
+  });
+
+  test("Each eSIM has a QR code", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim).to.have.property("qrcode");
+      expect(sim.qrcode).to.be.a("string").and.not.empty;
+    });
+  });
+}
+
