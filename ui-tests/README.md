@@ -43,6 +43,34 @@ Tests run across five projects:
 
 ## How to run
 
+### Via GitHub Actions (manual dispatch)
+
+The CI workflow can be triggered on demand without a code push directly from the GitHub UI.
+
+1. **Open the repository** on GitHub and click the **Actions** tab in the top navigation bar.
+
+2. **Select the workflow** — in the left sidebar, click **Playwright Tests**.
+
+3. **Trigger a run** — click the **Run workflow** button on the right-hand side of the page.  
+   A small dropdown will appear; leave the branch set to `main` and click the green **Run workflow** button to confirm.
+
+4. **Watch the run** — the new run will appear at the top of the list within a few seconds. Click on it to open the run detail page. You will see five parallel jobs (one per browser) running simultaneously under the `test` stage, followed by a `merge-reports` job.
+
+5. **Read the summary** — once the `merge-reports` job finishes, click on it and scroll to the **Summary** tab on the left. A table showing passed, failed, flaky, skipped, total tests and pass rate is generated automatically.
+
+6. **Download the full HTML report** — if you want to inspect screenshots, videos or traces for any test:
+   1. Scroll to the bottom of the run page and open the **Artifacts** section.
+   2. Download the file named **`playwright-report-<run-number>.zip`**.
+   3. Extract the ZIP.
+   4. Open `index.html` in your browser — no server required.
+
+> **Tip:** If any tests failed, the summary will also list each failing test by name, project and file, along with a command to re-run only the failures locally:
+> ```bash
+> npx playwright test --last-failed
+> ```
+
+---
+
 ### Locally
 
 Install dependencies and Playwright browsers (first time only):
@@ -72,34 +100,6 @@ Open the HTML report after a run:
 ```bash
 npx playwright show-report
 ```
-
----
-
-### Via GitHub Actions (manual dispatch)
-
-The CI workflow can be triggered on demand without a code push directly from the GitHub UI.
-
-1. **Open the repository** on GitHub and click the **Actions** tab in the top navigation bar.
-
-2. **Select the workflow** — in the left sidebar, click **Playwright Tests**.
-
-3. **Trigger a run** — click the **Run workflow** button on the right-hand side of the page.  
-   A small dropdown will appear; leave the branch set to `main` and click the green **Run workflow** button to confirm.
-
-4. **Watch the run** — the new run will appear at the top of the list within a few seconds. Click on it to open the run detail page. You will see five parallel jobs (one per browser) running simultaneously under the `test` stage, followed by a `merge-reports` job.
-
-5. **Read the summary** — once the `merge-reports` job finishes, click on it and scroll to the **Summary** tab on the left. A table showing passed, failed, flaky, skipped, total tests and pass rate is generated automatically.
-
-6. **Download the full HTML report** — if you want to inspect screenshots, videos or traces for any test:
-   1. Scroll to the bottom of the run page and open the **Artifacts** section.
-   2. Download the file named **`playwright-report-<run-number>.zip`**.
-   3. Extract the ZIP.
-   4. Open `index.html` in your browser — no server required.
-
-> **Tip:** If any tests failed, the summary will also list each failing test by name, project and file, along with a command to re-run only the failures locally:
-> ```bash
-> npx playwright test --last-failed
-> ```
 
 ---
 
