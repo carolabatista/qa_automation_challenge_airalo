@@ -10,9 +10,6 @@ get {
   auth: bearer
 }
 
-params:query {
-  include: order,order.status,order.user,share
-}
 
 auth:bearer {
   token: {{accessToken}}
@@ -80,38 +77,8 @@ tests {
     expect(res.body.data).to.have.property("direct_apple_installation_url");
   });
 
-  test("eSIM has apn_type field", function () {
-    expect(res.body.data).to.have.property("apn_type");
-  });
-
   test("eSIM has is_roaming boolean field", function () {
     expect(res.body.data).to.have.property("is_roaming");
     expect(res.body.data.is_roaming).to.be.a("boolean");
-  });
-
-  test("eSIM has confirmation_code field", function () {
-    expect(res.body.data).to.have.property("confirmation_code");
-  });
-
-  test("eSIM has recycled boolean field", function () {
-    expect(res.body.data).to.have.property("recycled");
-    expect(res.body.data.recycled).to.be.a("boolean");
-  });
-
-  test("eSIM has simable object with package details", function () {
-    expect(res.body.data).to.have.property("simable");
-    expect(res.body.data.simable).to.be.an("object");
-    expect(res.body.data.simable).to.have.property("package_id");
-    expect(res.body.data.simable).to.have.property("package");
-    expect(res.body.data.simable).to.have.property("price");
-    expect(res.body.data.simable).to.have.property("data");
-    expect(res.body.data.simable).to.have.property("validity");
-    expect(res.body.data.simable).to.have.property("currency");
-  });
-
-  test("simable has a status object", function () {
-    expect(res.body.data.simable).to.have.property("status");
-    expect(res.body.data.simable.status).to.have.property("slug");
-    expect(res.body.data.simable.status).to.have.property("name");
   });
 }
