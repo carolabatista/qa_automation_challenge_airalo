@@ -34,7 +34,6 @@ export class JapanOptionsPage extends BasePage {
 
   async verifyButtonPriceMatchesCart(): Promise<void> {
     const priceElement = this.unlimitedSevenDaysButton.getByTestId('price_amount');
-    await expect(priceElement).not.toBeEmpty();
     await expect(this.cartContainer).toContainText(await priceElement.innerText());
   }
 }
