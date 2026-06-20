@@ -1,21 +1,27 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
+import { BasePage } from './basePage';
 
 const FILL_SUGGESTION_TIMEOUT_MS = 3000;
 const SUGGESTION_VISIBLE_TIMEOUT_MS = 5000;
 
-export class LandingPage {
-  private readonly page: Page;
+export class LandingPage extends BasePage {
   private readonly searchInput: Locator;
   private readonly overlayDismissButton: Locator;
+  private readonly carouselSlide: Locator;
 
   constructor(page: Page) {
-    this.page = page;
+    super(page);
     this.searchInput = page.locator('[data-testid="search-input_text-field"]').first();
     this.overlayDismissButton = page
       .locator('button, [role="button"]')
       .filter({ hasText: /accept|allow/i })
       .or(page.locator('#wzrk-cancel'))
       .first();
+    this.carouselSlide = page.getByTestId('base-carousel_slide-container').first();
+  }
+
+  async verifyOnPage(): Promise<void> {
+    await expect(this.carouselSlide).toBeVisible();
   }
 
   async goto(): Promise<void> {

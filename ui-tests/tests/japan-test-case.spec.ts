@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 import { LandingPage } from '../pages/landingPage';
 import { JapanOptionsPage } from '../pages/japanOptionsPage';
 
@@ -6,7 +6,7 @@ test.describe('Japan eSIM purchase flow', () => {
   test('search for a country, select it and verify unlimited plan price matches cart', async ({ page }) => {
     const landing = new LandingPage(page);
     await landing.goto();
-    await expect(page).toHaveTitle(/airalo/i);
+    await landing.verifyOnPage();
 
     await landing.searchForCountry('Japan');
     await landing.selectCountry('Japan');

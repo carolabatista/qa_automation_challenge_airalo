@@ -1,14 +1,14 @@
 import { Page, Locator, expect } from '@playwright/test';
+import { BasePage } from './basePage';
 
-export class JapanOptionsPage {
-  private readonly page: Page;
+export class JapanOptionsPage extends BasePage {
   private readonly pageTitle: Locator;
   private readonly unlimitedTab: Locator;
   private readonly unlimitedSevenDaysButton: Locator;
   private readonly cartContainer: Locator;
 
   constructor(page: Page) {
-    this.page = page;
+    super(page);
     this.pageTitle = page.getByTestId('package-location-header_title');
     this.unlimitedTab = page.getByTestId('segmented-control_tab-unlimited');
     this.unlimitedSevenDaysButton = page.getByRole('button', { name: /Select Unlimited - 7 days/i });
