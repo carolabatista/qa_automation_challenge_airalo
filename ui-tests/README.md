@@ -115,7 +115,7 @@ npx playwright show-report
 
 ### 2. Locators and assertions are English-only
 
-The most impactful limitation. Locators use English text (`accept`, `allow`, `Japan`, `Select Unlimited - 7 days`) and assertions match English strings (`/japan/i`). If the site detects the browser locale and serves a different language, or if copy is A/B tested, these will fail silently (wrong country selected) or loudly (assertion error). Landing page detection uses the `data-testid="base-carousel_slide-container"` attribute and is therefore locale-independent.
+The most impactful limitation. Some locators use English text (`accept`, `allow`, `Japan`, `Select Unlimited - 7 days`) and assertions match English strings (`/japan/i`). If the site detects the browser locale and serves a different language, or if copy is A/B tested, these will fail silently (wrong country selected) or loudly (assertion error).
 
 **Defence:** The spec enforces `locale: 'en-US'` via `playwright.config.ts` so Playwright sets the `Accept-Language` header and browser locale to English on every run, making the language deterministic. The remaining exposure is server-side geo-detection overriding the locale header, which would require explicit cookie or URL parameter forcing — a known limitation documented here. The full solution would be to use `data-testid` attributes exclusively and avoid text-based locators entirely, but that requires cooperation from the application team.
 
@@ -129,5 +129,5 @@ The `#wzrk-cancel` selector and the `accept|allow` text filter target today's Cl
 
 ### 4. Single happy-path scenario
 
-The suite covers one end-to-end journey. Edge cases are not covered: no results for a search term, plan sold out, session expiry, network errors, or behaviour when the user is already signed in. These would be the natural next additions to the suite.
+The suite covers one end-to-end journey. Edge cases are not covered: no results for a search term, plan sold out, session expir or network errors. These would be the natural next additions to the suite.
 
