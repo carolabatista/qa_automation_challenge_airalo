@@ -39,6 +39,11 @@ tests {
     expect(res.status).to.equal(200);
   });
 
+  test("Response has meta.message 'success'", function () {
+    expect(res.body).to.have.property("meta");
+    expect(res.body.meta.message).to.equal("success");
+  });
+
   test("Response has data object", function () {
     expect(res.body).to.have.property("data");
   });

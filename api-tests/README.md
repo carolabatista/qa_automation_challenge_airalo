@@ -44,6 +44,7 @@ Each request validates three layers: **contract** (the shape of the response), *
 | Test | Layer | Rationale |
 |---|---|---|
 | Status 200 | Contract | Confirms the credentials are accepted and the endpoint is reachable |
+| `meta.message` equals `"success"` | Contract | Every Airalo API response includes `meta.message`; verifying it confirms the request was understood and processed successfully |
 | Response has `data` object | Contract | Validates the top-level response envelope matches the documented structure |
 | `access_token` is a non-empty string | Contract | A missing or empty token would silently break every downstream request |
 | `token_type` equals `Bearer` | Contract | Ensures the token scheme matches what the `Authorization` header expects |
@@ -56,13 +57,21 @@ Each request validates three layers: **contract** (the shape of the response), *
 |---|---|---|
 | **Pre-request guard: token not empty** | Chain integrity | Fails fast with a descriptive error if auth was skipped or failed, rather than receiving a misleading 401 |
 | Status 200 | Contract | Confirms the order was accepted |
+| `meta.message` equals `"success"` | Contract | Verifies the API confirmed successful order processing, not just an HTTP 200 |
 | Response has `data` object | Contract | Validates the response envelope |
+| `data.id` is a positive number | Contract | Every order has a unique numeric identifier; absence means the order was not persisted |
+| `data.code` is a non-empty string | Contract | The order code (e.g. `20260620-075524`) is used for order tracking and support |
+| `data.type` equals `"sim"` | Business logic | Confirms the API fulfilled the correct order type as requested |
+| `data.quantity` equals `6` | Business logic | Confirms the API acknowledged the requested quantity in the response — not just the SIM array length |
+| `data.currency` is a non-empty string | Contract | Confirms pricing currency is present for financial reconciliation |
 | `sims` array has exactly 6 items | Business logic | The order was placed for 6 eSIMs — any other count means the API returned an incorrect quantity |
 | `package_id` matches `moshi-moshi-7days-1gb` | Business logic | Ensures the correct package was fulfilled and the API did not substitute a different one |
 | All 6 ICCIDs are unique | Business logic | Duplicate ICCIDs would indicate the API returned the same eSIM twice, making the order invalid |
 | Each ICCID matches `/^\d{18,22}$/` | Contract | ICCIDs are standardised as 18–22 digit numeric strings (ITU-T E.118); any other format signals data corruption |
 | Each eSIM has a non-empty `lpa` string | Contract | The LPA address is required for eSIM installation; absent or empty means the eSIM cannot be activated |
 | Each eSIM has a non-empty `qrcode` string | Contract | The QR code is the primary delivery mechanism for end users; it must be present |
+| Each eSIM has a non-empty `qrcode_url` string | Contract | The hosted QR code image URL is used for display in partner portals and emails |
+| Each eSIM has a non-empty `direct_apple_installation_url` | Contract | Required for one-tap eSIM installation on iOS devices |
 | **Post-response script throws on failure** | Chain integrity | If the order fails, ICCID env vars are never set; throwing here stops the run before the eSIM requests execute with empty URLs |
 
 #### 03 — Get eSIM details (`GET /sims/{iccid}`)  *(repeated for each of the 6 eSIMs)*
@@ -72,11 +81,14 @@ Each request validates three layers: **contract** (the shape of the response), *
 | **Pre-request guard: token not empty** | Chain integrity | Same as above — fails fast rather than sending an unauthenticated request |
 | **Pre-request guard: ICCID not empty** | Chain integrity | An empty ICCID turns the URL into `/sims/` which either 404s or returns unrelated data, making the test results meaningless |
 | Status 200 | Contract | Confirms the eSIM exists and is retrievable |
+| `meta.message` equals `"success"` | Contract | Verifies the API lookup succeeded at the application level, not just at the HTTP transport level |
 | Response has `data` object | Contract | Validates the response envelope |
 | `iccid` in response equals the requested ICCID | Business logic | Confirms the API returned the correct eSIM and not a different one |
 | ICCID in response matches `/^\d{18,22}$/` | Contract | Validates the stored ICCID was not corrupted during the order→esim handoff |
 | `lpa` is a non-empty string | Contract | Validates the activation code is still present on the individual eSIM lookup |
 | `qrcode` is a non-empty string | Contract | Validates the QR code is accessible when fetching a single eSIM |
+| `qrcode_url` is a non-empty string | Contract | Validates the hosted QR code image URL is accessible on individual eSIM lookup |
+| `direct_apple_installation_url` is a non-empty string | Contract | Validates the iOS one-tap installation link is present when fetching a single eSIM |
 
 ### What is not tested (and why)
 

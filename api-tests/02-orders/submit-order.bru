@@ -54,8 +54,36 @@ tests {
     expect(res.status).to.equal(200);
   });
 
+  test("Response has meta.message 'success'", function () {
+    expect(res.body).to.have.property("meta");
+    expect(res.body.meta.message).to.equal("success");
+  });
+
   test("Response has data object", function () {
     expect(res.body).to.have.property("data");
+  });
+
+  test("Order has a numeric ID", function () {
+    expect(res.body.data).to.have.property("id");
+    expect(res.body.data.id).to.be.a("number").and.greaterThan(0);
+  });
+
+  test("Order has a code string", function () {
+    expect(res.body.data).to.have.property("code");
+    expect(res.body.data.code).to.be.a("string").and.not.empty;
+  });
+
+  test("Order type is 'sim'", function () {
+    expect(res.body.data.type).to.equal("sim");
+  });
+
+  test("Order quantity in response is 6", function () {
+    expect(res.body.data.quantity).to.equal(6);
+  });
+
+  test("Order currency is present", function () {
+    expect(res.body.data).to.have.property("currency");
+    expect(res.body.data.currency).to.be.a("string").and.not.empty;
   });
 
   test("Order contains 6 eSIMs", function () {
@@ -90,6 +118,20 @@ tests {
     res.body.data.sims.forEach(function (sim) {
       expect(sim).to.have.property("qrcode");
       expect(sim.qrcode).to.be.a("string").and.not.empty;
+    });
+  });
+
+  test("Each eSIM has a QR code URL", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim).to.have.property("qrcode_url");
+      expect(sim.qrcode_url).to.be.a("string").and.not.empty;
+    });
+  });
+
+  test("Each eSIM has a direct Apple installation URL", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim).to.have.property("direct_apple_installation_url");
+      expect(sim.direct_apple_installation_url).to.be.a("string").and.not.empty;
     });
   });
 }
