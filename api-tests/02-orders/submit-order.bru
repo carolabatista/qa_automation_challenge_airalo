@@ -6,7 +6,7 @@ meta {
 
 post {
   url: {{baseUrl}}/orders
-  body: json
+  body: multipartForm
   auth: bearer
 }
 
@@ -15,16 +15,13 @@ auth:bearer {
 }
 
 headers {
-  Content-Type: application/json
   Accept: application/json
 }
 
-body:json {
-  {
-    "quantity": 6,
-    "package_id": "{{packageId}}",
-    "type": "sim"
-  }
+body:multipart-form {
+  quantity: {{quantity}}
+  package_id: {{packageId}}
+  type: sim
 }
 
 script:pre-request {
@@ -50,6 +47,7 @@ script:post-response {
 }
 
 tests {
+  // ── HTTP + envelope ─────────────────────────────────────────────────────────
   test("Status 200 - OK", function () {
     expect(res.status).to.equal(200);
   });
@@ -61,8 +59,10 @@ tests {
 
   test("Response has data object", function () {
     expect(res.body).to.have.property("data");
+    expect(res.body.data).to.be.an("object");
   });
 
+  // ── Order-level fields ───────────────────────────────────────────────────────
   test("Order has a numeric ID", function () {
     expect(res.body.data).to.have.property("id");
     expect(res.body.data.id).to.be.a("number").and.greaterThan(0);
@@ -78,7 +78,7 @@ tests {
   });
 
   test("Order quantity in response is 6", function () {
-    expect(res.body.data.quantity).to.equal(6);
+    expect(Number(res.body.data.quantity)).to.equal(6);
   });
 
   test("Order currency is present", function () {
@@ -86,13 +86,60 @@ tests {
     expect(res.body.data.currency).to.be.a("string").and.not.empty;
   });
 
+  test("Package ID matches requested package", function () {
+    expect(res.body.data.package_id).to.equal("moshi-moshi-7days-1gb");
+  });
+
+  test("esim_type is a non-empty string", function () {
+    expect(res.body.data).to.have.property("esim_type");
+    expect(res.body.data.esim_type).to.be.a("string").and.not.empty;
+  });
+
+  test("validity is a positive integer", function () {
+    expect(res.body.data).to.have.property("validity");
+    expect(res.body.data.validity).to.be.a("number").and.greaterThan(0);
+  });
+
+  test("package name is a non-empty string", function () {
+    expect(res.body.data).to.have.property("package");
+    expect(res.body.data.package).to.be.a("string").and.not.empty;
+  });
+
+  test("data allowance is a non-empty string", function () {
+    expect(res.body.data).to.have.property("data");
+    expect(res.body.data.data).to.be.a("string").and.not.empty;
+  });
+
+  test("price is a positive number", function () {
+    expect(res.body.data).to.have.property("price");
+    expect(res.body.data.price).to.be.a("number").and.greaterThan(0);
+  });
+
+  test("pricing_model is a non-empty string", function () {
+    expect(res.body.data).to.have.property("pricing_model");
+    expect(res.body.data.pricing_model).to.be.a("string").and.not.empty;
+  });
+
+  test("manual_installation is a non-empty string", function () {
+    expect(res.body.data).to.have.property("manual_installation");
+    expect(res.body.data.manual_installation).to.be.a("string").and.not.empty;
+  });
+
+  test("qrcode_installation is a non-empty string", function () {
+    expect(res.body.data).to.have.property("qrcode_installation");
+    expect(res.body.data.qrcode_installation).to.be.a("string").and.not.empty;
+  });
+
+  test("installation_guides has at least one language key", function () {
+    expect(res.body.data).to.have.property("installation_guides");
+    expect(res.body.data.installation_guides).to.be.an("object");
+    expect(Object.keys(res.body.data.installation_guides).length).to.be.greaterThan(0);
+  });
+
+  // ── sims array ───────────────────────────────────────────────────────────────
   test("Order contains 6 eSIMs", function () {
     expect(res.body.data.sims).to.be.an("array");
     expect(res.body.data.sims).to.have.lengthOf(6);
-  });
-
-  test("Package ID matches requested package", function () {
-    expect(res.body.data.package_id).to.equal("moshi-moshi-7days-1gb");
   });
 
   test("All ICCIDs are unique", function () {
@@ -114,6 +161,13 @@ tests {
     });
   });
 
+  test("Each eSIM has a matching_id", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim).to.have.property("matching_id");
+      expect(sim.matching_id).to.be.a("string").and.not.empty;
+    });
+  });
+
   test("Each eSIM has a QR code", function () {
     res.body.data.sims.forEach(function (sim) {
       expect(sim).to.have.property("qrcode");
@@ -132,6 +186,19 @@ tests {
     res.body.data.sims.forEach(function (sim) {
       expect(sim).to.have.property("direct_apple_installation_url");
       expect(sim.direct_apple_installation_url).to.be.a("string").and.not.empty;
+    });
+  });
+
+  test("Each eSIM has an apn_type field", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim).to.have.property("apn_type");
+    });
+  });
+
+  test("Each eSIM has an is_roaming boolean", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim).to.have.property("is_roaming");
+      expect(sim.is_roaming).to.be.a("boolean");
     });
   });
 }

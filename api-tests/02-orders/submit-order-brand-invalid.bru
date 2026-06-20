@@ -1,0 +1,60 @@
+meta {
+  name: Submit Order - 422 Brand Doesn't Exist
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/orders
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Accept: application/json
+}
+
+body:multipart-form {
+  quantity: 1
+  package_id: {{packageId}}
+  type: sim
+  brand_settings_name: this-brand-absolutely-does-not-exist-xyz987
+}
+
+script:pre-request {
+  const token = bru.getEnvVar("accessToken");
+  if (!token) {
+    throw new Error("accessToken is empty. Run 01-auth/get-access-token first.");
+  }
+}
+
+tests {
+  // Docs: Submit Order (422) Brand doesn't exist
+  // Expected response body:
+  // { "data": { "brand_settings_name": "Brand settings name doesn't exist." },
+  //   "meta": { "message": "the parameter is invalid" } }
+
+  test("Status 422 - Unprocessable Entity", function () {
+    expect(res.status).to.equal(422);
+  });
+
+  test("meta.message is 'the parameter is invalid'", function () {
+    expect(res.body).to.have.property("meta");
+    expect(res.body.meta.message).to.equal("the parameter is invalid");
+  });
+
+  test("Response has data object with validation errors", function () {
+    expect(res.body).to.have.property("data");
+    expect(res.body.data).to.be.an("object");
+  });
+
+  test("Error response contains brand_settings_name validation message", function () {
+    expect(res.body.data).to.have.property("brand_settings_name");
+    expect(res.body.data.brand_settings_name).to.be.a("string").and.not.empty;
+  });
+}
+

@@ -20,7 +20,9 @@ Airalo/
 │   ├── 01-auth/
 │   │   └── get-access-token.bru
 │   ├── 02-orders/
-│   │   └── submit-order.bru
+│   │   ├── submit-order.bru                # Happy path — 6 eSIMs (seq 1)
+│   │   ├── submit-order-invalid-params.bru # 422 — invalid package + qty > 50 (seq 2)
+│   │   └── submit-order-brand-invalid.bru  # 422 — brand doesn't exist (seq 3)
 │   └── 03-esims/
 │       ├── get-esim-1.bru … get-esim-6.bru
 └── ui-tests/                  # Playwright E2E test suite
@@ -84,9 +86,9 @@ The Bruno collection verifies the full eSIM purchase flow against the Partner AP
 |------|--------|----------|--------------|
 | 1 | `01-auth` | `POST /token` | Obtains an OAuth2 Bearer token and stores it in `accessToken` |
 | 2 | `02-orders` | `POST /orders` | Places an order for 6 × `moshi-moshi-7days-1gb` eSIMs and stores each ICCID (`iccid1`–`iccid6`) |
-| 3 | `03-esims` | `GET /sims/{iccid}` | Fetches details for each of the 6 eSIMs in turn |
+| 3 | `03-esims` | `GET /sims/{iccid}?include=order,order.status,order.user,share` | Fetches full details (including embedded order data) for each of the 6 eSIMs in turn |
 
-Each request validates three layers: **contract** (response shape), **business logic** (data correctness), and **chain integrity** (pre/post-request guards that stop the run early rather than letting a silent failure propagate).
+Each request validates three layers: **contract** (response shape), **business logic** (data correctness), and **chain integrity** (pre/post-request guards that stop the run early rather than letting a silent failure propagate). The Get eSIM requests use the optional `include` query parameter (per the Partner API spec) to embed the related order object (`simable`) in a single call, enabling validation of package details, pricing, and order status without a separate request.
 
 > See [`api-tests/README.md`](api-tests/README.md) for the full coverage matrix and rationale.
 
