@@ -164,5 +164,4 @@ Or open the `api-tests/` folder in the [Bruno desktop app](https://www.usebruno.
 | `AIRALO_CLIENT_ID` | `api-tests.yml` |
 | `AIRALO_CLIENT_SECRET` | `api-tests.yml` |
 
-Set these in **Settings → Secrets and variables → Actions** in the GitHub repository before running the API workflow.
-
+Secrets were created in this Github repository, please refer to the original pdf description of the challenge for their values.
