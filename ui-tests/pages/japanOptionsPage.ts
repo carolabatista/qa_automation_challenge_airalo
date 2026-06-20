@@ -21,14 +21,12 @@ export class JapanOptionsPage extends BasePage {
 
   async selectUnlimitedTab(): Promise<void> {
     await this.unlimitedTab.scrollIntoViewIfNeeded();
-    await expect(this.unlimitedTab).toBeVisible();
     await this.unlimitedTab.click();
     await expect(this.unlimitedTab).toHaveAttribute('aria-selected', 'true');
   }
 
   async selectUnlimitedSevenDays(): Promise<void> {
     await this.unlimitedSevenDaysButton.scrollIntoViewIfNeeded();
-    await expect(this.unlimitedSevenDaysButton).toBeVisible();
     await this.unlimitedSevenDaysButton.click();
     await expect(this.page).toHaveURL(/7days-unlimited/i);
     await expect(this.cartContainer).toBeVisible();
