@@ -47,3 +47,67 @@ jobs:
           path: api-tests/results/junit.xml
           if-no-files-found: ignore
 
+      - name: Write job summary
+        if: always()
+        working-directory: api-tests
+        run: |
+          JUNIT="results/junit.xml"
+
+          echo "## 🧪 Airalo API Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ ! -f "$JUNIT" ]; then
+            echo "⚠️ No test results file found — the test run may have failed before producing output." >> $GITHUB_STEP_SUMMARY
+          else
+            # Parse totals from the <testsuite> element
+            TESTS=$(grep -oP 'tests="\K[^"]+' "$JUNIT" | head -1)
+            FAILURES=$(grep -oP 'failures="\K[^"]+' "$JUNIT" | head -1)
+            ERRORS=$(grep -oP 'errors="\K[^"]+' "$JUNIT" | head -1)
+            TIME=$(grep -oP 'time="\K[^"]+' "$JUNIT" | head -1)
+
+            PASSED=$(( TESTS - FAILURES - ERRORS ))
+
+            if [ "$FAILURES" -eq 0 ] && [ "$ERRORS" -eq 0 ]; then
+              STATUS="✅ All tests passed"
+            else
+              STATUS="❌ Some tests failed"
+            fi
+
+            echo "### $STATUS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total  | $TESTS |" >> $GITHUB_STEP_SUMMARY
+            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+            echo "| ❌ Failed | $FAILURES |" >> $GITHUB_STEP_SUMMARY
+            echo "| 💥 Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
+            echo "| ⏱ Duration | ${TIME}s |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # List failed tests if any
+            if [ "$FAILURES" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
+              echo "### Failed Tests" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              grep -oP '(?<=<testcase name=")[^"]+' "$JUNIT" | while read -r NAME; do
+                echo "- ❌ $NAME" >> $GITHUB_STEP_SUMMARY
+              done
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Downloading the Full Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The raw JUnit XML report is uploaded as a workflow artifact named **\`api-test-results\`**." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**To download it:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Open the **Actions** tab in this repository." >> $GITHUB_STEP_SUMMARY
+          echo "2. Click the workflow run you want to inspect." >> $GITHUB_STEP_SUMMARY
+          echo "3. Scroll down to the **Artifacts** section." >> $GITHUB_STEP_SUMMARY
+          echo "4. Click **\`api-test-results\`** to download the ZIP file." >> $GITHUB_STEP_SUMMARY
+          echo "5. Extract it — you will find \`junit.xml\` inside." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**To read the results:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Open \`junit.xml\` in any browser or IDE — it is a standard JUnit XML file." >> $GITHUB_STEP_SUMMARY
+          echo "- Or import it into a reporting tool such as **Allure**, **ReportPortal**, or any CI dashboard that supports JUnit XML." >> $GITHUB_STEP_SUMMARY
+
