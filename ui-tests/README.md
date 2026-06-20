@@ -6,7 +6,7 @@ Playwright-based end-to-end test suite for [airalo.com](https://www.airalo.com).
 
 ## Strategy
 
-Tests are written using the **Page Object Model (POM)** pattern. Two pages were created, one for landing and other for Japan specific logic, and each are represented by a dedicated class in `pages/` that encapsulates locators and interaction logic. Specs are kept clean — they express the user journey in plain method calls, with no selector or browser detail leaking into the test body.
+Tests are written using the **Page Object Model (POM)** pattern. All page classes extend an abstract `BasePage` which enforces a `verifyOnPage()` contract, ensuring every page can assert it is the correct destination. Two concrete pages were created — one for the landing page and one for Japan-specific logic — and each is represented by a dedicated class in `pages/` that encapsulates locators and interaction logic. Specs are kept clean — they express the user journey in plain method calls, with no selector or browser detail leaking into the test body.
 
 ### Consent & overlay handling
 
@@ -115,7 +115,7 @@ The CI workflow can be triggered on demand without a code push directly from the
 
 ### 2. Locators and assertions are English-only
 
-The most impactful limitation. Locators use English text (`accept`, `allow`, `Japan`, `Select Unlimited - 7 days`) and assertions match English strings (`/airalo/i`, `/japan/i`). If the site detects the browser locale and serves a different language, or if copy is A/B tested, these will fail silently (wrong country selected) or loudly (assertion error).
+The most impactful limitation. Locators use English text (`accept`, `allow`, `Japan`, `Select Unlimited - 7 days`) and assertions match English strings (`/japan/i`). If the site detects the browser locale and serves a different language, or if copy is A/B tested, these will fail silently (wrong country selected) or loudly (assertion error). Landing page detection uses the `data-testid="base-carousel_slide-container"` attribute and is therefore locale-independent.
 
 **Defence:** The spec enforces `locale: 'en-US'` via `playwright.config.ts` so Playwright sets the `Accept-Language` header and browser locale to English on every run, making the language deterministic. The remaining exposure is server-side geo-detection overriding the locale header, which would require explicit cookie or URL parameter forcing — a known limitation documented here. The full solution would be to use `data-testid` attributes exclusively and avoid text-based locators entirely, but that requires cooperation from the application team.
 
