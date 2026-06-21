@@ -20,9 +20,13 @@ Airalo/
 │   ├── 01-auth/
 │   │   └── get-access-token.bru
 │   ├── 02-orders/
-│   │   ├── submit-order.bru                # 200 — happy path, 6 eSIMs
-│   │   ├── submit-order-invalid-params.bru # 422 — invalid package + quantity > 50
-│   │   └── submit-order-brand-invalid.bru  # 422 — brand doesn't exist
+│   │   ├── submit-order.bru                # 200 — happy path, 6 eSIMs (seq 1)
+│   │   ├── submit-order-invalid-params.bru # 422 — invalid package ID (seq 2)
+│   │   ├── submit-order-brand-invalid.bru  # 422 — brand doesn't exist (seq 3)
+│   │   ├── submit-order-qty-unavailable.bru# 422 — SIM quantity not available (seq 4)
+│   │   ├── submit-order-email-share.bru    # 200 — with email share (seq 5)
+│   │   ├── submit-order-voice-data.bru     # 200 — Voice & Data package (seq 6)
+│   │   └── submit-order-discount.bru       # 200 — discount pricing (seq 7)
 │   └── 03-esims/
 │       ├── get-esim-1.bru … get-esim-6.bru
 └── ui-tests/                  # Playwright E2E test suite
@@ -85,7 +89,7 @@ The Bruno collection verifies the full eSIM purchase flow against the Partner AP
 | Step | Folder | Endpoint | What it does |
 |------|--------|----------|--------------|
 | 1 | `01-auth` | `POST /token` | Obtains an OAuth2 Bearer token and stores it in `accessToken` (no test assertions — prerequisite only) |
-| 2 | `02-orders` | `POST /orders` | Three requests: 200 happy path (6 eSIMs), 422 invalid params, 422 invalid brand |
+| 2 | `02-orders` | `POST /orders` | Seven requests covering all documented response scenarios: 200 happy path, 200 email share, 200 Voice & Data, 200 discount pricing, 422 invalid package, 422 brand invalid, 422 SIM qty unavailable |
 | 3 | `03-esims` | `GET /sims/{iccid}` | Fetches details for each of the 6 eSIMs in turn |
 
 The two endpoints under test are `POST /orders` and `GET /sims/{iccid}`. Each is validated against three criteria: **status code** (including error codes), **response message**, and **response body**.

@@ -13,9 +13,13 @@ api-tests/
 ├── 01-auth/
 │   └── get-access-token.bru               # POST /token — OAuth2 client credentials
 ├── 02-orders/
-│   ├── submit-order.bru                   # POST /orders — 200 happy path (seq 1)
+│   ├── submit-order.bru                   # POST /orders — 200 happy path, 6 eSIMs (seq 1)
 │   ├── submit-order-invalid-params.bru    # POST /orders — 422 invalid package ID (seq 2)
-│   └── submit-order-brand-invalid.bru     # POST /orders — 422 brand doesn't exist (seq 3)
+│   ├── submit-order-brand-invalid.bru     # POST /orders — 422 brand doesn't exist (seq 3)
+│   ├── submit-order-qty-unavailable.bru   # POST /orders — 422 SIM qty not available (seq 4)
+│   ├── submit-order-email-share.bru       # POST /orders — 200 with email share (seq 5)
+│   ├── submit-order-voice-data.bru        # POST /orders — 200 Voice & Data package (seq 6)
+│   └── submit-order-discount.bru          # POST /orders — 200 discount pricing (seq 7)
 └── 03-esims/
     ├── get-esim-1.bru                     # GET /sims/{iccid} — eSIM 1 details
     ├── get-esim-2.bru                     # GET /sims/{iccid} — eSIM 2 details
@@ -30,10 +34,14 @@ api-tests/
 The tests run in order using numbered folders:
 
 1. **01-auth** — fetches an OAuth2 Bearer token and stores it in `accessToken`
-2. **02-orders** — three requests covering the documented status codes for `POST /orders`:
-   - `submit-order.bru` *(seq 1)* — 200 happy path; places the real order and stores `iccid1`–`iccid6`
+2. **02-orders** — seven requests covering all documented status codes and response variants for `POST /orders`:
+   - `submit-order.bru` *(seq 1)* — 200 happy path; places the real order, stores `iccid1`–`iccid6`
    - `submit-order-invalid-params.bru` *(seq 2)* — 422 with an invalid `package_id` (returns `{ code, reason }` format)
    - `submit-order-brand-invalid.bru` *(seq 3)* — 422 with a non-existent `brand_settings_name`
+   - `submit-order-qty-unavailable.bru` *(seq 4)* — 422 requesting more quantity than is in stock
+   - `submit-order-email-share.bru` *(seq 5)* — 200 order submitted with `to_email` + `sharing_option[]`
+   - `submit-order-voice-data.bru` *(seq 6)* — 200 order for a Voice & Data package (`voiceDataPackageId`)
+   - `submit-order-discount.bru` *(seq 7)* — 200 order that conditionally validates discount fields when `pricing_model` is `discount_pricing`
 3. **03-esims** — fetches details for each of the 6 eSIMs using the stored ICCIDs
 
 ---
@@ -108,6 +116,63 @@ Three requests cover the documented status codes for this endpoint.
 | Status 422 | Confirms the API rejects orders referencing a non-existent brand |
 | `meta.message` equals `"the parameter is invalid"` | Verifies the error message is consistent across 422 types |
 | Response body contains `brand_settings_name` error string | Confirms the field-specific error is returned for the invalid brand |
+
+##### `submit-order-qty-unavailable.bru` — Status 422 (SIM quantity not available)
+
+Sends `quantity: 50` on the standard package. When the package has fewer than 50 SIMs in stock, the API returns a 422 with a quantity availability message.
+
+| Test | Rationale |
+|---|---|
+| Status 422 | Confirms the API rejects orders when insufficient stock is available |
+| `meta.message` equals `"the parameter is invalid"` | Verifies the standard 422 error envelope |
+| Response body contains `data.quantity` error string | Confirms the field-level stock error message is returned |
+
+##### `submit-order-email-share.bru` — Status 200 (with email share)
+
+Submits an order with `to_email` and `sharing_option[]: link`. The email is dispatched asynchronously — the response body is structurally identical to the happy path, confirming the order proceeds normally when email sharing is requested.
+
+| Test | Rationale |
+|---|---|
+| Status 200 | Confirms the order is accepted when email share params are included |
+| `meta.message` equals `"success"` | Verifies successful order processing |
+| Response has `data` object | Validates the response envelope |
+| `data.type` equals `"sim"` | Order type is correctly reflected |
+| `sims` array is present and non-empty | eSIMs were issued |
+| Each ICCID matches `/^\d{18,22}$/` | eSIM identifiers are valid |
+| Each eSIM has a non-empty `qrcode` string | Delivery mechanism is present |
+
+##### `submit-order-voice-data.bru` — Status 200 (Voice & Data package)
+
+Uses `voiceDataPackageId` (configured in `environments/production.bru`). Voice & Data packages return additional fields on the order object (`text`, `voice`, `net_price`) and expanded APN information (`apn.ios`, `apn.android`) and an `msisdn` on each SIM.
+
+| Test | Rationale |
+|---|---|
+| Status 200 | Confirms the V&D package order is accepted |
+| `meta.message` equals `"success"` | Verifies successful order processing |
+| Response has `data` object | Validates the response envelope |
+| `data.text` field is present | V&D-specific order field for text/SMS allowance |
+| `data.voice` field is present | V&D-specific order field for voice allowance |
+| `data.net_price` field is present | Net price field present on V&D orders |
+| `sims` array is present and non-empty | eSIMs were issued |
+| Each ICCID matches `/^\d{18,22}$/` | eSIM identifiers are valid |
+| Each eSIM has a non-empty `qrcode` string | Delivery mechanism is present |
+| Each eSIM has an `msisdn` field | V&D-specific eSIM property: the MSISDN number |
+| Each eSIM has an `apn` object with `ios` and `android` | V&D-specific expanded APN structure with per-OS settings |
+
+##### `submit-order-discount.bru` — Status 200 (discount pricing)
+
+Uses the standard package. When the partner account has a negotiated discount configured, the API returns `pricing_model: "discount_pricing"` along with additional discount fields. The test conditionally validates these fields only when discount pricing is active — so it passes on both standard and discounted accounts.
+
+| Test | Rationale |
+|---|---|
+| Status 200 | Confirms the order is accepted regardless of pricing model |
+| `meta.message` equals `"success"` | Verifies successful order processing |
+| Response has `data` object | Validates the response envelope |
+| `pricing_model` is a non-empty string | Documents which pricing model is active |
+| If `pricing_model` is `"discount_pricing"`: `discount_percentage` > 0, `discount_amount` > 0, `unit_paid_price` > 0, `total_amount_paid` > 0, `unit_paid_price` < `price` | Validates all discount fields when active and confirms the discounted price is lower than the list price |
+| `sims` array is present and non-empty | eSIMs were issued |
+| Each ICCID matches `/^\d{18,22}$/` | eSIM identifiers are valid |
+| Each eSIM has a non-empty `qrcode` string | Delivery mechanism is present |
 
 #### 03 — Get eSIM details (`GET /sims/{iccid}`)  *(repeated for each of the 6 eSIMs)*
 

@@ -1,0 +1,51 @@
+meta {
+  name: Submit Order - 422 SIM Quantity Not Available
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/orders
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Accept: application/json
+}
+
+body:multipart-form {
+  quantity: 50
+  package_id: {{packageId}}
+  type: sim
+}
+
+script:pre-request {
+  const token = bru.getEnvVar("accessToken");
+  if (!token) {
+    throw new Error("accessToken is empty. Run 01-auth/get-access-token first.");
+  }
+}
+
+tests {
+  test("Status 422 - Unprocessable Entity", function () {
+    expect(res.status).to.equal(422);
+  });
+
+  test("meta.message is 'the parameter is invalid'", function () {
+    expect(res.body).to.have.property("meta");
+    expect(res.body.meta.message).to.equal("the parameter is invalid");
+  });
+
+  test("Response body contains quantity availability error", function () {
+    expect(res.body).to.have.property("data");
+    expect(res.body.data).to.be.an("object");
+    expect(res.body.data).to.have.property("quantity");
+    expect(res.body.data.quantity).to.be.a("string").and.not.empty;
+  });
+}
+

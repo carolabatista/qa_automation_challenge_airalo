@@ -1,0 +1,91 @@
+meta {
+  name: Submit Order - 200 Discount Pricing
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/orders
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+headers {
+  Accept: application/json
+}
+
+body:multipart-form {
+  quantity: 1
+  package_id: {{packageId}}
+  type: sim
+}
+
+script:pre-request {
+  const token = bru.getEnvVar("accessToken");
+  if (!token) {
+    throw new Error("accessToken is empty. Run 01-auth/get-access-token first.");
+  }
+}
+
+tests {
+  test("Status 200 - OK", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("meta.message equals 'success'", function () {
+    expect(res.body).to.have.property("meta");
+    expect(res.body.meta.message).to.equal("success");
+  });
+
+  test("Response has data object", function () {
+    expect(res.body).to.have.property("data");
+    expect(res.body.data).to.be.an("object");
+  });
+
+  test("pricing_model is a non-empty string", function () {
+    expect(res.body.data).to.have.property("pricing_model");
+    expect(res.body.data.pricing_model).to.be.a("string").and.not.empty;
+  });
+
+  test("If discount pricing, discount fields are present and valid", function () {
+    if (res.body.data.pricing_model === "discount_pricing") {
+      expect(res.body.data).to.have.property("discount_percentage");
+      expect(res.body.data.discount_percentage).to.be.a("number").and.greaterThan(0);
+
+      expect(res.body.data).to.have.property("discount_amount");
+      expect(res.body.data.discount_amount).to.be.a("number").and.greaterThan(0);
+
+      expect(res.body.data).to.have.property("unit_paid_price");
+      expect(res.body.data.unit_paid_price).to.be.a("number").and.greaterThan(0);
+
+      expect(res.body.data).to.have.property("total_amount_paid");
+      expect(res.body.data.total_amount_paid).to.be.a("number").and.greaterThan(0);
+
+      // Discount amount should reduce the price: unit_paid_price < price
+      expect(res.body.data.unit_paid_price).to.be.lessThan(res.body.data.price);
+    }
+  });
+
+  test("sims array is present and non-empty", function () {
+    expect(res.body.data.sims).to.be.an("array");
+    expect(res.body.data.sims.length).to.be.greaterThan(0);
+  });
+
+  test("Each eSIM has an ICCID", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim.iccid).to.match(/^\d{18,22}$/);
+    });
+  });
+
+  test("Each eSIM has a QR code", function () {
+    res.body.data.sims.forEach(function (sim) {
+      expect(sim).to.have.property("qrcode");
+      expect(sim.qrcode).to.be.a("string").and.not.empty;
+    });
+  });
+}
+
