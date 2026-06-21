@@ -34,32 +34,4 @@ script:post-response {
   }
 }
 
-tests {
-  test("Status 200 - OK", function () {
-    expect(res.status).to.equal(200);
-  });
-
-  test("Response has meta.message 'success'", function () {
-    expect(res.body).to.have.property("meta");
-    expect(res.body.meta.message).to.equal("success");
-  });
-
-  test("Response has data object", function () {
-    expect(res.body).to.have.property("data");
-  });
-
-  test("Response contains access_token", function () {
-    expect(res.body.data).to.have.property("access_token");
-    expect(res.body.data.access_token).to.be.a("string").and.not.empty;
-  });
-
-  test("Token type is Bearer", function () {
-    expect(res.body.data.token_type).to.equal("Bearer");
-  });
-
-  test("Token has expiry duration", function () {
-    expect(res.body.data).to.have.property("expires_in");
-    expect(res.body.data.expires_in).to.be.a("number").and.greaterThan(0);
-  });
-}
 

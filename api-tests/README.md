@@ -6,21 +6,23 @@ Bruno API test collection for the [Airalo Partner API](https://partners-api.aira
 
 ```
 api-tests/
-├── bruno.json                    # Bruno collection root
-├── package.json                  # npm scripts
+├── bruno.json                             # Bruno collection root
+├── package.json                           # npm scripts
 ├── environments/
-│   └── production.bru            # Base URL, credentials, shared variables
+│   └── production.bru                     # Base URL, credentials, shared variables
 ├── 01-auth/
-│   └── get-access-token.bru      # POST /token — OAuth2 client credentials
+│   └── get-access-token.bru               # POST /token — OAuth2 client credentials
 ├── 02-orders/
-│   └── submit-order.bru          # POST /orders — place order for 6 eSIMs
+│   ├── submit-order.bru                   # POST /orders — 200 happy path (seq 1)
+│   ├── submit-order-invalid-params.bru    # POST /orders — 422 invalid package + qty (seq 2)
+│   └── submit-order-brand-invalid.bru     # POST /orders — 422 brand doesn't exist (seq 3)
 └── 03-esims/
-    ├── get-esim-1.bru             # GET /sims/{iccid} — eSIM 1 details
-    ├── get-esim-2.bru             # GET /sims/{iccid} — eSIM 2 details
-    ├── get-esim-3.bru             # GET /sims/{iccid} — eSIM 3 details
-    ├── get-esim-4.bru             # GET /sims/{iccid} — eSIM 4 details
-    ├── get-esim-5.bru             # GET /sims/{iccid} — eSIM 5 details
-    └── get-esim-6.bru             # GET /sims/{iccid} — eSIM 6 details
+    ├── get-esim-1.bru                     # GET /sims/{iccid} — eSIM 1 details
+    ├── get-esim-2.bru                     # GET /sims/{iccid} — eSIM 2 details
+    ├── get-esim-3.bru                     # GET /sims/{iccid} — eSIM 3 details
+    ├── get-esim-4.bru                     # GET /sims/{iccid} — eSIM 4 details
+    ├── get-esim-5.bru                     # GET /sims/{iccid} — eSIM 5 details
+    └── get-esim-6.bru                     # GET /sims/{iccid} — eSIM 6 details
 ```
 
 ## How it works
@@ -28,14 +30,17 @@ api-tests/
 The tests run in order using numbered folders:
 
 1. **01-auth** — fetches an OAuth2 Bearer token and stores it in `accessToken`
-2. **02-orders** — submits an order for 6 eSIMs (`moshi-moshi-7days-1gb`) and stores each ICCID (`iccid1`–`iccid6`) from the response
+2. **02-orders** — three requests covering the documented status codes for `POST /orders`:
+   - `submit-order.bru` *(seq 1)* — 200 happy path; places the real order and stores `iccid1`–`iccid6`
+   - `submit-order-invalid-params.bru` *(seq 2)* — 422 with an invalid `package_id` and `quantity > 50`
+   - `submit-order-brand-invalid.bru` *(seq 3)* — 422 with a non-existent `brand_settings_name`
 3. **03-esims** — fetches details for each of the 6 eSIMs using the stored ICCIDs
 
 ---
 
 ## Coverage strategy
 
-Each request is verified against three criteria from the coding challenge:
+The coding challenge specifies two endpoints to test: `POST /orders` and `GET /sims/{iccid}`. Each is verified against three criteria:
 
 | Criterion | What is checked |
 |---|---|
@@ -43,27 +48,23 @@ Each request is verified against three criteria from the coding challenge:
 | **Message** | Every response checks `meta.message` for the appropriate value |
 | **Response body** | Each response verifies the correct order details and eSIM properties are present |
 
-### What is tested and why
+The authentication step (`POST /token`) is a prerequisite — it runs first to obtain a Bearer token and stores it for downstream use. It has no test assertions of its own; if it fails, the post-response script throws and stops the entire run.
 
-Each request also includes **chain integrity guards** (pre/post-request scripts) that stop the run early if a prerequisite step failed, rather than letting a silent empty-value propagate to every downstream request.
+### What is tested and why
 
 #### 01 — Authentication (`POST /token`)
 
-| Test | Rationale |
-|---|---|
-| Status 200 | Confirms the credentials are accepted and the endpoint is reachable |
-| `meta.message` equals `"success"` | Verifies the request was understood and processed successfully at the application level |
-| Response has `data` object | Validates the top-level response envelope |
-| `access_token` is a non-empty string | A missing or empty token would silently break every downstream request |
-| `token_type` equals `Bearer` | Ensures the token scheme matches what the `Authorization` header expects |
-| `expires_in` is a positive number | Confirms the API communicates token lifetime |
-| **Post-response script throws on failure** | If the token is not obtained, execution stops immediately instead of propagating a silent failure |
+No test assertions. The post-response script stores the token in `accessToken` and throws on failure, preventing the rest of the suite from running with an empty token.
 
 #### 02 — Submit order (`POST /orders`)
 
+Three requests cover the documented status codes for this endpoint.
+
+##### `submit-order.bru` — Status 200
+
 | Test | Rationale |
 |---|---|
-| **Pre-request guard: token not empty** | Fails fast if auth was skipped or failed, rather than receiving a misleading 401 |
+| **Pre-request guard: token not empty** | Fails fast if auth was skipped or failed |
 | Status 200 | Confirms the order was accepted |
 | `meta.message` equals `"success"` | Verifies successful order processing at the application level |
 | Response has `data` object | Validates the response envelope |
@@ -90,6 +91,22 @@ Each request also includes **chain integrity guards** (pre/post-request scripts)
 | Each eSIM has `is_roaming` boolean | eSIM property: roaming status flag |
 | **Post-response script throws on failure** | If the order fails, ICCID env vars are never set; stops the run before eSIM requests execute with empty URLs |
 
+##### `submit-order-invalid-params.bru` — Status 422 (invalid package + quantity > 50)
+
+| Test | Rationale |
+|---|---|
+| Status 422 | Confirms the API rejects unprocessable input with the correct HTTP status code |
+| `meta.message` equals `"the parameter is invalid"` | Verifies the documented error message for 422 responses |
+| Response body contains `package_id` and `quantity` error strings | Confirms field-level validation messages are returned for each invalid parameter |
+
+##### `submit-order-brand-invalid.bru` — Status 422 (brand doesn't exist)
+
+| Test | Rationale |
+|---|---|
+| Status 422 | Confirms the API rejects orders referencing a non-existent brand |
+| `meta.message` equals `"the parameter is invalid"` | Verifies the error message is consistent across 422 types |
+| Response body contains `brand_settings_name` error string | Confirms the field-specific error is returned for the invalid brand |
+
 #### 03 — Get eSIM details (`GET /sims/{iccid}`)  *(repeated for each of the 6 eSIMs)*
 
 | Test | Rationale |
@@ -111,7 +128,7 @@ Each request also includes **chain integrity guards** (pre/post-request scripts)
 ### What is not tested (and why)
 
 - **`meta.message` exact value on Get eSIM** — the live API returns `"succes"` (one `s`), a documented typo. The test checks that the field *exists* rather than hard-coding the typo.
-- **422 error responses** — the coding challenge asks to verify each request in the flow receives the appropriate status code. The flow is auth → order → get-esim, all of which should succeed. Deliberately injecting bad inputs to generate 422s is outside the scope of this exercise.
+- **422 on Get eSIM** — an invalid or unknown ICCID in the URL would trigger a 4xx, but the ICCIDs used in the suite are obtained directly from the preceding order response, so they are guaranteed valid. A dedicated negative test would require fabricating a fake ICCID that is structurally valid but unknown to the API.
 - **Invalid credentials / 401 responses** — would require a separate set of intentionally broken credentials.
 - **Rate limiting / 429 responses** — would require deliberate request flooding, outside the scope of a functional suite.
 - **Response time / SLA** — not part of the API contract defined in the exercise.

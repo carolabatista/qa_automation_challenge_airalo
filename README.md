@@ -20,7 +20,9 @@ Airalo/
 │   ├── 01-auth/
 │   │   └── get-access-token.bru
 │   ├── 02-orders/
-│   │   └── submit-order.bru
+│   │   ├── submit-order.bru                # 200 — happy path, 6 eSIMs
+│   │   ├── submit-order-invalid-params.bru # 422 — invalid package + quantity > 50
+│   │   └── submit-order-brand-invalid.bru  # 422 — brand doesn't exist
 │   └── 03-esims/
 │       ├── get-esim-1.bru … get-esim-6.bru
 └── ui-tests/                  # Playwright E2E test suite
@@ -82,11 +84,11 @@ The Bruno collection verifies the full eSIM purchase flow against the Partner AP
 
 | Step | Folder | Endpoint | What it does |
 |------|--------|----------|--------------|
-| 1 | `01-auth` | `POST /token` | Obtains an OAuth2 Bearer token and stores it in `accessToken` |
-| 2 | `02-orders` | `POST /orders` | Places an order for 6 × `moshi-moshi-7days-1gb` eSIMs and stores each ICCID (`iccid1`–`iccid6`) |
+| 1 | `01-auth` | `POST /token` | Obtains an OAuth2 Bearer token and stores it in `accessToken` (no test assertions — prerequisite only) |
+| 2 | `02-orders` | `POST /orders` | Three requests: 200 happy path (6 eSIMs), 422 invalid params, 422 invalid brand |
 | 3 | `03-esims` | `GET /sims/{iccid}` | Fetches details for each of the 6 eSIMs in turn |
 
-Each request is validated against the three criteria from the coding challenge: **status code**, **response message**, and **response body** (order details and eSIM properties). Chain-integrity guards in pre/post-request scripts stop the run early if a step fails, rather than letting a silent failure propagate downstream.
+The two endpoints under test are `POST /orders` and `GET /sims/{iccid}`. Each is validated against three criteria: **status code** (including error codes), **response message**, and **response body**.
 
 > See [`api-tests/README.md`](api-tests/README.md) for the full coverage matrix and rationale.
 
