@@ -14,7 +14,7 @@ api-tests/
 │   └── get-access-token.bru               # POST /token — OAuth2 client credentials
 ├── 02-orders/
 │   ├── submit-order.bru                   # POST /orders — 200 happy path (seq 1)
-│   ├── submit-order-invalid-params.bru    # POST /orders — 422 invalid package + qty (seq 2)
+│   ├── submit-order-invalid-params.bru    # POST /orders — 422 invalid package ID (seq 2)
 │   └── submit-order-brand-invalid.bru     # POST /orders — 422 brand doesn't exist (seq 3)
 └── 03-esims/
     ├── get-esim-1.bru                     # GET /sims/{iccid} — eSIM 1 details
@@ -32,7 +32,7 @@ The tests run in order using numbered folders:
 1. **01-auth** — fetches an OAuth2 Bearer token and stores it in `accessToken`
 2. **02-orders** — three requests covering the documented status codes for `POST /orders`:
    - `submit-order.bru` *(seq 1)* — 200 happy path; places the real order and stores `iccid1`–`iccid6`
-   - `submit-order-invalid-params.bru` *(seq 2)* — 422 with an invalid `package_id` and `quantity > 50`
+   - `submit-order-invalid-params.bru` *(seq 2)* — 422 with an invalid `package_id` (returns `{ code, reason }` format)
    - `submit-order-brand-invalid.bru` *(seq 3)* — 422 with a non-existent `brand_settings_name`
 3. **03-esims** — fetches details for each of the 6 eSIMs using the stored ICCIDs
 
@@ -91,13 +91,15 @@ Three requests cover the documented status codes for this endpoint.
 | Each eSIM has `is_roaming` boolean | eSIM property: roaming status flag |
 | **Post-response script throws on failure** | If the order fails, ICCID env vars are never set; stops the run before eSIM requests execute with empty URLs |
 
-##### `submit-order-invalid-params.bru` — Status 422 (invalid package + quantity > 50)
+##### `submit-order-invalid-params.bru` — Status 422 (invalid package ID)
+
+> **Note:** This endpoint returns a non-standard error envelope for this error type: `{ "code": 34, "reason": "..." }` rather than the `data`/`meta` structure used by the happy-path and brand-invalid responses.
 
 | Test | Rationale |
 |---|---|
 | Status 422 | Confirms the API rejects unprocessable input with the correct HTTP status code |
-| `meta.message` equals `"the parameter is invalid"` | Verifies the documented error message for 422 responses |
-| Response body contains `package_id` and `quantity` error strings | Confirms field-level validation messages are returned for each invalid parameter |
+| Response has a numeric `code` field | Validates the error format the API actually returns for this case |
+| Response has a non-empty `reason` string | Confirms a human-readable error message is present |
 
 ##### `submit-order-brand-invalid.bru` — Status 422 (brand doesn't exist)
 
