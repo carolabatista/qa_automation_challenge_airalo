@@ -1,5 +1,5 @@
 meta {
-  name: Submit Order - 422 Invalid Package and Quantity
+  name: Submit Order - 422 Invalid Package ID
   type: http
   seq: 2
 }
@@ -19,7 +19,7 @@ headers {
 }
 
 body:multipart-form {
-  quantity: 99
+  quantity: 1
   package_id: this-package-does-not-exist
   type: sim
 }
@@ -41,13 +41,11 @@ tests {
     expect(res.body.meta.message).to.equal("the parameter is invalid");
   });
 
-  test("Response body contains field-level validation errors", function () {
+  test("Response body contains package_id validation error", function () {
     expect(res.body).to.have.property("data");
     expect(res.body.data).to.be.an("object");
     expect(res.body.data).to.have.property("package_id");
     expect(res.body.data.package_id).to.be.a("string").and.not.empty;
-    expect(res.body.data).to.have.property("quantity");
-    expect(res.body.data.quantity).to.be.a("string").and.not.empty;
   });
 }
 

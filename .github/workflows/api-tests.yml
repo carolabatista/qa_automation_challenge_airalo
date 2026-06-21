@@ -59,40 +59,41 @@ jobs:
           if [ ! -f "$JUNIT" ]; then
             echo "⚠️ No test results file found — the test run may have failed before producing output." >> $GITHUB_STEP_SUMMARY
           else
-            # Parse totals from the <testsuite> element
-            TESTS=$(grep -oP 'tests="\K[^"]+' "$JUNIT" | head -1)
-            FAILURES=$(grep -oP 'failures="\K[^"]+' "$JUNIT" | head -1)
-            ERRORS=$(grep -oP 'errors="\K[^"]+' "$JUNIT" | head -1)
-            TIME=$(grep -oP 'time="\K[^"]+' "$JUNIT" | head -1)
+            python3 - << 'PYEOF'
+          import xml.etree.ElementTree as ET, os
 
-            PASSED=$(( TESTS - FAILURES - ERRORS ))
+          junit = "results/junit.xml"
+          out   = os.environ["GITHUB_STEP_SUMMARY"]
 
-            if [ "$FAILURES" -eq 0 ] && [ "$ERRORS" -eq 0 ]; then
-              STATUS="✅ All tests passed"
-            else
-              STATUS="❌ Some tests failed"
-            fi
+          root   = ET.parse(junit).getroot()
+          suites = root.findall("testsuite") if root.tag == "testsuites" else [root]
 
-            echo "### $STATUS" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| Total  | $TESTS |" >> $GITHUB_STEP_SUMMARY
-            echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
-            echo "| ❌ Failed | $FAILURES |" >> $GITHUB_STEP_SUMMARY
-            echo "| 💥 Errors | $ERRORS |" >> $GITHUB_STEP_SUMMARY
-            echo "| ⏱ Duration | ${TIME}s |" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
+          tests    = sum(int(s.get("tests",    0)) for s in suites)
+          failures = sum(int(s.get("failures", 0)) for s in suites)
+          errors   = sum(int(s.get("errors",   0)) for s in suites)
+          skipped  = sum(int(s.get("skipped",  0)) for s in suites)
+          duration = sum(float(s.get("time",   0)) for s in suites)
+          passed   = tests - failures - errors - skipped
 
-            # List failed tests if any
-            if [ "$FAILURES" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
-              echo "### Failed Tests" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              grep -oP '(?<=<testcase name=")[^"]+' "$JUNIT" | while read -r NAME; do
-                echo "- ❌ $NAME" >> $GITHUB_STEP_SUMMARY
-              done
-              echo "" >> $GITHUB_STEP_SUMMARY
-            fi
+          status = "✅ All tests passed" if failures == 0 and errors == 0 else "❌ Some tests failed"
+
+          with open(out, "a") as f:
+              f.write(f"### {status}\n\n")
+              f.write("| Metric | Value |\n|--------|-------|\n")
+              f.write(f"| Total | {tests} |\n")
+              f.write(f"| ✅ Passed | {passed} |\n")
+              f.write(f"| ❌ Failed | {failures} |\n")
+              f.write(f"| 💥 Errors | {errors} |\n")
+              f.write(f"| ⏱ Duration | {duration:.3f}s |\n\n")
+
+              if failures > 0 or errors > 0:
+                  f.write("### ❌ Failed Tests\n\n")
+                  for suite in suites:
+                      for tc in suite.findall("testcase"):
+                          if tc.find("failure") is not None or tc.find("error") is not None:
+                              f.write(f"- `{suite.get('name')}` › **{tc.get('name')}**\n")
+                  f.write("\n")
+          PYEOF
           fi
 
           echo "---" >> $GITHUB_STEP_SUMMARY
@@ -110,4 +111,3 @@ jobs:
           echo "**To read the results:**" >> $GITHUB_STEP_SUMMARY
           echo "- Open \`junit.xml\` in any browser or IDE — it is a standard JUnit XML file." >> $GITHUB_STEP_SUMMARY
           echo "- Or import it into a reporting tool such as **Allure**, **ReportPortal**, or any CI dashboard that supports JUnit XML." >> $GITHUB_STEP_SUMMARY
-
