@@ -227,6 +227,17 @@ There are two ways to run the tests locally: via the **Bruno desktop app** (visu
 Download and install the Bruno desktop app for your OS from the official site:  
 👉 https://www.usebruno.com/downloads
 
+#### 2. Create your local environment file
+
+The environment file containing credentials is **not committed to the repo** (it is gitignored to prevent accidental secret exposure). Copy the template and fill in your credentials:
+
+```bash
+cd api-tests/environments
+cp production.bru.example production.bru
+```
+
+Then open `production.bru` and replace `YOUR_CLIENT_ID` and `YOUR_CLIENT_SECRET` with your actual Airalo Partner API credentials.
+
 #### 2. Open the collection
 
 1. Launch Bruno
@@ -263,7 +274,15 @@ node --version
 
 If not, download it from https://nodejs.org or use a version manager like `nvm`.
 
-#### 2. Install dependencies
+#### 2. Create your local environment file
+
+```bash
+cd api-tests/environments
+cp production.bru.example production.bru
+# Then edit production.bru and fill in clientId and clientSecret
+```
+
+#### 3. Install dependencies
 
 ```bash
 cd api-tests
