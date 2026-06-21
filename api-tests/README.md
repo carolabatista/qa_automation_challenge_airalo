@@ -117,15 +117,16 @@ Three requests cover the documented status codes for this endpoint.
 | `meta.message` equals `"the parameter is invalid"` | Verifies the error message is consistent across 422 types |
 | Response body contains `brand_settings_name` error string | Confirms the field-specific error is returned for the invalid brand |
 
-##### `submit-order-qty-unavailable.bru` — Status 422 (SIM quantity not available)
+##### `submit-order-qty-unavailable.bru` — Status 200 or 422 (SIM quantity not available)
 
-Sends `quantity: 50` on the standard package. When the package has fewer than 50 SIMs in stock, the API returns a 422 with a quantity availability message.
+Sends `quantity: 50` on the standard package. Stock levels in production are not under test control — the API returns 422 when the package has fewer than 50 SIMs available, and 200 when it has sufficient stock. Both outcomes are explicitly tested.
 
 | Test | Rationale |
 |---|---|
-| Status 422 | Confirms the API rejects orders when insufficient stock is available |
-| `meta.message` equals `"the parameter is invalid"` | Verifies the standard 422 error envelope |
-| Response body contains `data.quantity` error string | Confirms the field-level stock error message is returned |
+| API responds with 200 or 422 | Confirms the endpoint returns a recognised status code in both stock scenarios |
+| 200: `meta.message` is `"success"` and `sims` array is non-empty | Validates the order was accepted and eSIMs were issued when stock was available |
+| 422: `meta.message` is `"the parameter is invalid"` | Validates the documented error envelope when stock is exhausted |
+| 422: `data.quantity` contains a stock availability error string | Confirms the field-specific error message is returned when insufficient stock is available |
 
 ##### `submit-order-email-share.bru` — Status 200 (with email share)
 
@@ -141,23 +142,21 @@ Submits an order with `to_email` and `sharing_option[]: link`. The email is disp
 | Each ICCID matches `/^\d{18,22}$/` | eSIM identifiers are valid |
 | Each eSIM has a non-empty `qrcode` string | Delivery mechanism is present |
 
-##### `submit-order-voice-data.bru` — Status 200 (Voice & Data package)
+##### `submit-order-voice-data.bru` — Status 200 or 422 (Voice & Data package)
 
-Uses `voiceDataPackageId` (configured in `environments/production.bru`). Voice & Data packages return additional fields on the order object (`text`, `voice`, `net_price`) and expanded APN information (`apn.ios`, `apn.android`) and an `msisdn` on each SIM.
+Uses `voiceDataPackageId` (configured in `environments/production.bru`, default `uki-mobile-15days-2gb` from the official docs). Voice & Data packages are not available in all partner accounts. Both outcomes are explicitly tested: a 200 validates all V&D-specific fields; a 422 validates the documented error structure for an unavailable package.
 
 | Test | Rationale |
 |---|---|
-| Status 200 | Confirms the V&D package order is accepted |
-| `meta.message` equals `"success"` | Verifies successful order processing |
-| Response has `data` object | Validates the response envelope |
-| `data.text` field is present | V&D-specific order field for text/SMS allowance |
-| `data.voice` field is present | V&D-specific order field for voice allowance |
-| `data.net_price` field is present | Net price field present on V&D orders |
-| `sims` array is present and non-empty | eSIMs were issued |
-| Each ICCID matches `/^\d{18,22}$/` | eSIM identifiers are valid |
-| Each eSIM has a non-empty `qrcode` string | Delivery mechanism is present |
-| Each eSIM has an `msisdn` field | V&D-specific eSIM property: the MSISDN number |
-| Each eSIM has an `apn` object with `ios` and `android` | V&D-specific expanded APN structure with per-OS settings |
+| API responds with 200 or 422 | Confirms the endpoint returns a recognised status code in both availability scenarios |
+| 200: `meta.message` is `"success"` | Verifies the order was processed successfully |
+| 200: `data.text` and `data.voice` fields are present | V&D-specific order fields for text/SMS and voice allowances |
+| 200: `data.net_price` field is present | Net price field returned on V&D orders |
+| 200: `sims` array is non-empty and each ICCID is valid | eSIMs were issued with valid identifiers |
+| 200: each eSIM has a non-empty `qrcode` string | Delivery mechanism is present |
+| 200: each eSIM has an `msisdn` field | V&D-specific eSIM property: the MSISDN number |
+| 200: each eSIM has an `apn` object with `ios` and `android` | V&D-specific expanded APN structure |
+| 422: response has numeric `code` and non-empty `reason` string | Validates the documented error structure when the V&D package is unavailable for this account |
 
 ##### `submit-order-discount.bru` — Status 200 (discount pricing)
 
