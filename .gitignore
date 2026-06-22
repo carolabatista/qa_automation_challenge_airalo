@@ -6,3 +6,7 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Bruno — never commit local environment overrides that contain real credentials
+# production.bru is committed with empty values; fill credentials locally only
+
