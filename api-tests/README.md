@@ -227,15 +227,6 @@ There are two ways to run the tests locally: via the **Bruno desktop app** (visu
 Download and install the Bruno desktop app for your OS from the official site:  
 👉 https://www.usebruno.com/downloads
 
-#### 2. Create your local environment file
-
-The environment file containing credentials is **not committed to the repo** (it is gitignored to prevent accidental secret exposure). Copy the template and fill in your credentials:
-
-```bash
-cd api-tests/environments
-cp production.bru.example production.bru
-```
-
 Then open `production.bru` and replace `YOUR_CLIENT_ID` and `YOUR_CLIENT_SECRET` with your actual Airalo Partner API credentials.
 
 #### 2. Open the collection
@@ -244,11 +235,16 @@ Then open `production.bru` and replace `YOUR_CLIENT_ID` and `YOUR_CLIENT_SECRET`
 2. Click **Open Collection** in the home screen (or **File → Open Collection** from the menu)
 3. Navigate to and select the `api-tests/` folder — Bruno will detect `bruno.json` and load the collection
 
-#### 3. Select the environment
+#### 3. Select the environment and add auth credentials
 
 1. In the top-right corner of the Bruno window, open the **Environment** dropdown
 2. Select **production**  
    _(this loads the base URL, credentials, and shared variables from `environments/production.bru`)_
+3. Click the **Edit** button next to the environment dropdown
+4. In the environment editor, fill in your actual API credentials:
+   - `clientID`: Your Airalo Partner API client ID 
+   - `clientSecret`: Your Airalo Partner API client secret
+5. Click **Save** to apply the changes
 
 #### 4. Run all requests
 
@@ -274,15 +270,7 @@ node --version
 
 If not, download it from https://nodejs.org or use a version manager like `nvm`.
 
-#### 2. Create your local environment file
-
-```bash
-cd api-tests/environments
-cp production.bru.example production.bru
-# Then edit production.bru and fill in clientId and clientSecret
-```
-
-#### 3. Install dependencies
+#### 2. Install dependencies
 
 ```bash
 cd api-tests
@@ -294,7 +282,7 @@ This installs `@usebruno/cli` (the `bru` binary) locally into `node_modules/.bin
 #### 3. Run the full suite
 
 ```bash
-npm test
+npm test --env-var "clientId=$you_client_id_here" --env-var "clientSecret=$your_client_secret_here"
 ```
 
 This runs `bru run --env production -r` from the `api-tests/` directory, executing all requests in folder order (`01-auth` → `02-orders` → `03-esims`).
