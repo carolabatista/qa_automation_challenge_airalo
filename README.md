@@ -42,6 +42,20 @@ Airalo/
 
 ---
 
+## Running the Workflows
+
+> ⚠️ GitHub requires **write access** to manually trigger workflows. Since this is a public repo, you'll need to fork it first.
+
+### Steps
+
+1. **Fork this repository** — click the **Fork** button at the top right of this page
+2. Go to your forked repo → **Actions** tab
+3. If prompted, click **"I understand my workflows, go ahead and enable them"**
+4. In the left sidebar, select the workflow you want to run:
+   - **Playwright Tests** → `playwright.yml`
+   - **API Tests** → `api-tests.yml`
+5. Click **"Run workflow"** → select branch `main` → click **Run workflow**
+
 ## UI tests (`ui-tests/`)
 
 ### What is tested
@@ -63,6 +77,8 @@ Tests follow the **Page Object Model** pattern. Locators and interaction logic l
 | `webkit` | Desktop Safari |
 | `mobile chrome` | Pixel 5 (393 × 851) |
 | `mobile safari` | iPhone 14 (390 × 844) |
+
+
 
 ### Running locally
 

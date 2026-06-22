@@ -45,7 +45,7 @@ Tests run across five projects:
 
 ### Via GitHub Actions (manual dispatch)
 
-The CI workflow can be triggered on demand without a code push directly from the GitHub UI.
+The CI workflow can be triggered on demand without a code push directly from the GitHub UI. As detailed before, you must fork this repository.
 
 1. **Open the repository** on GitHub and click the **Actions** tab in the top navigation bar.
 
